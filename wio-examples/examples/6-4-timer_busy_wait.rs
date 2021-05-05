@@ -10,14 +10,13 @@
 #![no_main]
 
 use panic_halt as _;
-use wio_terminal as wio;
-
 use wio::hal::clock::GenericClockController;
 use wio::hal::delay::Delay;
 use wio::pac::{CorePeripherals, Peripherals};
 use wio::prelude::*;
 use wio::{entry, Pins, Sets};
 use wio_examples::Led;
+use wio_terminal as wio;
 
 #[entry]
 fn main() -> ! {
@@ -27,10 +26,21 @@ fn main() -> ! {
     let mut sets: Sets = Pins::new(peripherals.PORT).split();
     let mut led = Led::new(sets.user_led, &mut sets.port);
 
-    // TODO: Delay構造体オブジェクトを取得する
+    let core = CorePeripherals::take().unwrap();
+    let mut clocks = GenericClockController::with_internal_32kosc(
+        peripherals.GCLK,
+        &mut peripherals.MCLK,
+        &mut peripherals.OSC32KCTRL,
+        &mut peripherals.OSCCTRL,
+        &mut peripherals.NVMCTRL,
+    );
+
+    // Delay構造体オブジェクトを取得する
+    let mut delay = Delay::new(core.SYST, &mut clocks);
 
     loop {
-        // TODO: Lチカのコードを書く
-        
+        // Lチカのコードを書く
+        led.toggle();
+        delay.delay_ms(1000u16);
     }
 }
