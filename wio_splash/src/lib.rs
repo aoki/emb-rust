@@ -1,3 +1,5 @@
+#![no_std]
+
 use embedded_graphics::{
     egcircle, egrectangle, egtext,
     fonts::Font8x16,
@@ -108,13 +110,5 @@ impl<'a> Drawable<Rgb565> for WioSplash<'a> {
             style = text_style!(font = Font8x16, text_color = self.text_color,)
         )
         .draw(display)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
     }
 }
