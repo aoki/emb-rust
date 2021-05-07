@@ -17,8 +17,12 @@ use core::fmt::Write;
 use core::ops::DerefMut;
 use cortex_m::interrupt::{self as cortex_interrupt, Mutex};
 use eg::{
-    egrectangle, egtext, fonts::Font24x32, pixelcolor::Rgb565, prelude::*, primitive_style,
-    text_style,
+    egrectangle, egtext,
+    fonts::{Font24x32, Font8x16},
+    image::*,
+    pixelcolor::Rgb565,
+    prelude::*,
+    primitive_style, text_style,
 };
 use embedded_graphics as eg;
 use heapless::consts::*;
@@ -32,6 +36,8 @@ use wio::hal::{delay::Delay, pwm::Tcc0Pwm};
 use wio::pac::{interrupt, CorePeripherals, Peripherals, TC3};
 use wio::prelude::*;
 use wio::{entry, Pins, Sets};
+
+// use wio_splash::WioSplash;
 
 struct Ctx {
     timer_counter: u32,
@@ -96,6 +102,18 @@ where
         style = text_style!(font = Font24x32, text_color = Rgb565::WHITE)
     )
     .draw(display)?;
+
+    // let s = match state {
+    //     State::Initializing => "Initializing",
+    //     State::Idle => "Idle",
+    //     State::Running => "Running",
+    // };
+    // egtext!(
+    //     text = s,
+    //     top_left = (0, 0),
+    //     style = text_style!(font = Font8x16, text_color = Rgb565::WHITE)
+    // )
+    // .draw(display)?;
 
     Ok(())
 }
@@ -194,13 +212,67 @@ fn main() -> ! {
     let button_stop = sets.buttons.button2.into_floating_input(&mut sets.port);
     let button_clear = sets.buttons.button1.into_floating_input(&mut sets.port);
 
+    // -----------------
+    // Draw kani
+    // -----------------
+    // let raw = ImageRawLE::new(include_bytes!("./assets/ferris.raw"), 86, 64);
+    // let splash = WioSplash::new(Rgb565::GREEN, raw);
+    // splash.draw(&mut display).unwrap();
+
+    let raw = ImageRawLE::new(include_bytes!("./assets/ferris.raw"), 86, 64);
+    let image = Image::new(
+        &raw,
+        Point::new(SCREEN_WIDTH / 2 - 43, SCREEN_HEIGHT / 2 - 32),
+    );
+    image.draw(&mut display).unwrap();
+
+    fn enum2str(s: &mut State) -> &'static str {
+        match s {
+            State::Initializing => "Initializing",
+            State::Idle => "Idle",
+            State::Running => "Running",
+        }
+    }
+
     let mut state = State::Initializing;
     loop {
-        // match state {
-        //     // TODO: ステートマシンを実装する
-
-        draw(&mut display).unwrap();
-        // }
+        // Draw state
+        egtext!(
+            text = enum2str(&mut state),
+            top_left = (0, 0),
+            style = text_style!(font = Font8x16, text_color = Rgb565::WHITE)
+        )
+        .draw(&mut display)
+        .unwrap();
+        match state {
+            // ステートマシンを実装する
+            State::Initializing => {
+                state = State::Idle;
+                draw(&mut display).unwrap()
+            }
+            State::Idle => {
+                if button_start.is_low().unwrap() {
+                    unsafe { CTX.as_mut().unwrap().tc3.enable_interrupt() }
+                    beep(&mut buzzer, &mut delay, 880.hz(), 200u16);
+                    state = State::Running;
+                    draw(&mut display).unwrap()
+                } else if button_clear.is_low().unwrap() {
+                    unsafe { CTX.as_mut().unwrap().timer_counter = 0 }
+                    beep(&mut buzzer, &mut delay, 1760.hz(), 400u16);
+                    draw(&mut display).unwrap()
+                }
+            }
+            State::Running => {
+                if button_stop.is_low().unwrap() {
+                    state = State::Idle;
+                    unsafe { CTX.as_mut().unwrap().tc3.disable_interrupt() }
+                    beep(&mut buzzer, &mut delay, 440.hz(), 50u16);
+                    delay.delay_ms(50u16);
+                    beep(&mut buzzer, &mut delay, 440.hz(), 100u16);
+                }
+                draw(&mut display).unwrap()
+            }
+        }
     }
 }
 
@@ -208,7 +280,10 @@ fn main() -> ! {
 #[interrupt]
 fn TC3() {
     unsafe {
-        // TODO: タイマカウンタをインクリメントして次のタイマを再開する
+        // タイマカウンタをインクリメントして次のタイマを再開する
+        let ctx = CTX.as_mut().unwrap();
+        ctx.tc3.wait().ok();
+        ctx.timer_counter += 1;
     }
 }
 
