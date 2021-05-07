@@ -17,8 +17,8 @@ use core::fmt::Write;
 use core::ops::DerefMut;
 use cortex_m::interrupt::{self as cortex_interrupt, Mutex};
 use eg::{
-    egrectangle, egtext, fonts::Font24x32, pixelcolor::Rgb565,
-    prelude::*, primitive_style, text_style,
+    egrectangle, egtext, fonts::Font24x32, pixelcolor::Rgb565, prelude::*, primitive_style,
+    text_style,
 };
 use embedded_graphics as eg;
 use heapless::consts::*;
@@ -40,9 +40,8 @@ struct Ctx {
 static mut CTX: Option<Ctx> = None;
 
 // デバッグ用UART
-static UART: Mutex<RefCell<Option<
-    UART2<Sercom2Pad1<Pb27<PfC>>, Sercom2Pad0<Pb26<PfC>>, (), ()>
->>> = Mutex::new(RefCell::new(None));
+static UART: Mutex<RefCell<Option<UART2<Sercom2Pad1<Pb27<PfC>>, Sercom2Pad0<Pb26<PfC>>, (), ()>>>> =
+    Mutex::new(RefCell::new(None));
 
 enum State {
     Initializing, // 初期化処理
@@ -74,11 +73,16 @@ where
     // TODO: カウント表示エリアをクリアする
     const FONT_WIDTH: i32 = 24;
     const FONT_HEIGHT: i32 = 32;
+    egrectangle!(
+        top_left = (0, 0),
+        bottom_right = (SCREEN_WIDTH - 1, FONT_HEIGHT),
+        style = primitive_style!(fill_color = Rgb565::BLACK)
+    )
+    .draw(display)?;
 
     // TODO: 現在のタイムスタンプを取得する
 
     // TODO: タイムスタンプを描画する
-
 
     Ok(())
 }
@@ -135,16 +139,20 @@ fn main() -> ! {
     // GCLK6を使うTC2/TC3向けのクロック設定を構築
     let timer_clock = clocks.tc2_tc3(&gclk6).unwrap();
     // TC3を初期化
-    let mut tc3 = wio::hal::timer::TimerCounter::tc3_(
-        &timer_clock,
-        peripherals.TC3,
-        &mut peripherals.MCLK,
-    );
-    unsafe { NVIC::unmask(interrupt::TC3); }
+    let mut tc3 =
+        wio::hal::timer::TimerCounter::tc3_(&timer_clock, peripherals.TC3, &mut peripherals.MCLK);
+    unsafe {
+        NVIC::unmask(interrupt::TC3);
+    }
     // 62.5[ms] = 1/16[s]周期のカウンタとしてTC3の動作を開始
     tc3.start(62500.us());
 
-    unsafe { CTX = Some(Ctx { timer_counter: 0, tc3 }); }
+    unsafe {
+        CTX = Some(Ctx {
+            timer_counter: 0,
+            tc3,
+        });
+    }
 
     // LCDの初期化
     let (mut display, _backlight) = sets
@@ -169,18 +177,15 @@ fn main() -> ! {
     .unwrap();
 
     // ボタンのGPIOを初期化
-    let button_start =
-        sets.buttons.button3.into_floating_input(&mut sets.port);
-    let button_stop =
-        sets.buttons.button2.into_floating_input(&mut sets.port);
-    let button_clear =
-        sets.buttons.button1.into_floating_input(&mut sets.port);
+    let button_start = sets.buttons.button3.into_floating_input(&mut sets.port);
+    let button_stop = sets.buttons.button2.into_floating_input(&mut sets.port);
+    let button_clear = sets.buttons.button1.into_floating_input(&mut sets.port);
 
     let mut state = State::Initializing;
     loop {
-        match state {
-            // TODO: ステートマシンを実装する
-        }
+        // match state {
+        //     // TODO: ステートマシンを実装する
+        // }
     }
 }
 
@@ -197,9 +202,7 @@ use core::panic::PanicInfo;
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     cortex_interrupt::free(|cs| {
-        if let Some(ref mut serial) =
-            UART.borrow(cs).borrow_mut().deref_mut()
-        {
+        if let Some(ref mut serial) = UART.borrow(cs).borrow_mut().deref_mut() {
             writeln!(serial, "panic: {}", info).ok();
         }
     });
