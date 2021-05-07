@@ -70,19 +70,32 @@ fn draw<T>(display: &mut T) -> Result<(), T::Error>
 where
     T: embedded_graphics::DrawTarget<Rgb565>,
 {
-    // TODO: カウント表示エリアをクリアする
+    // カウント表示エリアをクリアする
     const FONT_WIDTH: i32 = 24;
     const FONT_HEIGHT: i32 = 32;
     egrectangle!(
         top_left = (0, 0),
         bottom_right = (SCREEN_WIDTH - 1, FONT_HEIGHT),
-        style = primitive_style!(fill_color = Rgb565::BLACK)
+        style = primitive_style!(fill_color = Rgb565::RED)
     )
     .draw(display)?;
 
-    // TODO: 現在のタイムスタンプを取得する
+    // 現在のタイムスタンプを取得する
+    let counter = unsafe { CTX.as_ref().unwrap().timer_counter };
+    let elapsed_s = (counter as f32) / 16.0;
 
-    // TODO: タイムスタンプを描画する
+    // タイムスタンプを描画する
+    let mut textbuffer = String::<U256>::new();
+    write!(&mut textbuffer, "{:.2}", elapsed_s).unwrap();
+
+    let length = textbuffer.len();
+    let left = SCREEN_WIDTH - (length as i32) * FONT_WIDTH;
+    egtext!(
+        text = textbuffer.as_str(),
+        top_left = (left, 0),
+        style = text_style!(font = Font24x32, text_color = Rgb565::WHITE)
+    )
+    .draw(display)?;
 
     Ok(())
 }
@@ -185,6 +198,8 @@ fn main() -> ! {
     loop {
         // match state {
         //     // TODO: ステートマシンを実装する
+
+        draw(&mut display).unwrap();
         // }
     }
 }
