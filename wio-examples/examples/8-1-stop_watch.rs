@@ -4,6 +4,7 @@
 //! ### 実行方法
 //! ```sh
 //! $ cargo hf2 --example 8-1-stop_watch --features app --release
+//! $ cargo hf2 --example 8-1-stop_watch --features "app splash" --release
 //! ```
 
 #![no_std]
